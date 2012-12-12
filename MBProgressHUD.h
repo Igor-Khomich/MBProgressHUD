@@ -82,6 +82,7 @@ typedef enum {
 
 #if NS_BLOCKS_AVAILABLE
 typedef void (^MBProgressHUDCompletionBlock)();
+typedef void (^ActionBlock)();
 #endif
 
 
@@ -272,6 +273,12 @@ typedef void (^MBProgressHUDCompletionBlock)();
  */
 @property (copy) MBProgressHUDCompletionBlock completionBlock;
 
+/*
+ * Button properties
+ */
+@property (copy) NSString *buttonText;
+@property (copy) ActionBlock buttonActionBlock;
+
 #endif
 
 /** 
@@ -306,7 +313,7 @@ typedef void (^MBProgressHUDCompletionBlock)();
  * the entire text. If the text is too long it will get clipped by displaying "..." at the end. If left unchanged or
  * set to @"", then no message is displayed.
  */
-@property (copy) NSString *labelText;
+@property (nonatomic, copy) NSString *labelText;
 
 /** 
  * An optional details message displayed below the labelText message. This message is displayed only if the labelText

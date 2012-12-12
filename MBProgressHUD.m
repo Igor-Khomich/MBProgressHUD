@@ -1,10 +1,12 @@
-//
+ //
 // MBProgressHUD.m
 // Version 0.5
 // Created by Matej Bukovinski on 2.4.09.
 //
 
 #import "MBProgressHUD.h"
+
+#import <objc/runtime.h>
 
 
 #if __has_feature(objc_arc)
@@ -22,7 +24,8 @@ static const CGFloat kPadding = 4.f;
 static const CGFloat kLabelFontSize = 16.f;
 static const CGFloat kDetailsLabelFontSize = 12.f;
 
-
+static const CGFloat kButtonHeight = 50.f;
+static const CGFloat kButtonFrameSize = 8.0f;
 @interface MBProgressHUD ()
 
 - (void)setupLabels;
@@ -62,6 +65,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	UILabel *detailsLabel;
 	BOOL isFinished;
 	CGAffineTransform rotationTransform;
+    UIButton *button;
 }
 
 #pragma mark - Properties
@@ -92,8 +96,10 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 @synthesize detailsLabelText;
 @synthesize progress;
 @synthesize size;
+@synthesize buttonText;
 #if NS_BLOCKS_AVAILABLE
 @synthesize completionBlock;
+@synthesize buttonActionBlock;
 #endif
 
 #pragma mark - Class methods
@@ -157,7 +163,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 		self.mode = MBProgressHUDModeIndeterminate;
 		self.labelText = nil;
 		self.detailsLabelText = nil;
-		self.opacity = 0.8f;
+		self.opacity = 0.5f;
         self.color = nil;
 		self.labelFont = [UIFont boldSystemFontOfSize:kLabelFontSize];
 		self.detailsLabelFont = [UIFont boldSystemFontOfSize:kDetailsLabelFontSize];
@@ -190,6 +196,26 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	return self;
 }
 
+-(void)callActionBlock:(UIButton *)sender{
+#if NS_BLOCKS_AVAILABLE
+	if (self.buttonActionBlock) {
+		self.buttonActionBlock();
+		self.buttonActionBlock = NULL;
+        sender.enabled = NO;
+	}
+#endif
+}
+
+- (void)setLabelText:(NSString *)text{
+    labelText = [text copy];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (label){
+            [label setText:text];
+        }
+    });
+    
+}
+
 - (id)initWithView:(UIView *)view {
 	NSAssert(view, @"View must not be nil.");
 	id me = [self initWithFrame:view.bounds];
@@ -220,6 +246,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	[customView release];
 #if NS_BLOCKS_AVAILABLE
 	[completionBlock release];
+    [buttonActionBlock release];
 #endif
 	[super dealloc];
 #endif
@@ -444,6 +471,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	detailsLabel.font = self.detailsLabelFont;
 	detailsLabel.text = self.detailsLabelText;
 	[self addSubview:detailsLabel];
+
 }
 
 - (void)updateIndicators {
@@ -486,10 +514,10 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 - (void)layoutSubviews {
 	
 	// Entirely cover the parent view
-	UIView *parent = self.superview;
-	if (parent) {
-		self.frame = parent.bounds;
-	}
+//	UIView *parent = self.superview;
+//	if (parent) {
+//		self.frame = parent.bounds;
+//	}
 	CGRect bounds = self.bounds;
 	
 	// Determine the total widt and height needed
@@ -566,6 +594,21 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 		totalSize.height = minSize.height;
 	}
 	
+#if NS_BLOCKS_AVAILABLE
+    if (buttonText)
+    {
+        if (!button)
+        {
+            button = [UIButton buttonWithType:UIButtonTypeCustom];
+            [button addTarget:self action:@selector(callActionBlock:) forControlEvents:UIControlEventTouchUpInside];
+            [button setTitle:buttonText forState:UIControlStateNormal];
+            [button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+            [self addSubview:button];
+        }
+        totalSize.height += kButtonHeight;
+    }
+#endif
+    
 	self.size = totalSize;
 }
 
@@ -608,6 +651,29 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	// Draw rounded HUD backgroud rect
 	CGRect boxRect = CGRectMake(roundf((allRect.size.width - size.width) / 2) + self.xOffset,
 								roundf((allRect.size.height - size.height) / 2) + self.yOffset, size.width, size.height);
+    
+#if NS_BLOCKS_AVAILABLE
+    if (buttonText)
+    {
+        CGRect frame = boxRect;
+        
+        frame.origin.x += kButtonFrameSize;
+        frame.origin.y += frame.size.height;
+        frame.origin.y -= kButtonHeight - kButtonFrameSize;
+        frame.size.width -= kButtonFrameSize*2;
+        frame.size.height = kButtonHeight - kButtonFrameSize*2;
+        
+        UIImage *image = [UIImage imageNamed:@"MBProgressHUD.bundle/whiteFrameButton.png"];
+        image = [image resizableImageWithCapInsets:UIEdgeInsetsMake(5, 5, 5, 5)];
+        UIImage *pressedImage = [UIImage imageNamed:@"MBProgressHUD.bundle/whiteFrameButtonPressed.png"];
+        pressedImage = [pressedImage resizableImageWithCapInsets:UIEdgeInsetsMake(5, 5, 5, 5)];
+        
+        [button setBackgroundImage:image forState:UIControlStateNormal];
+        [button setBackgroundImage:pressedImage forState:UIControlStateHighlighted];
+        [button setFrame:frame];
+    }
+#endif
+    
 	float radius = 10.0f;
 	CGContextBeginPath(context);
 	CGContextMoveToPoint(context, CGRectGetMinX(boxRect) + radius, CGRectGetMinY(boxRect));
