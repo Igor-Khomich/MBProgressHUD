@@ -276,8 +276,8 @@ typedef void (^ActionBlock)();
 /*
  * Button properties
  */
-@property (copy) NSString *buttonText;
-@property (copy) ActionBlock buttonActionBlock;
+@property (nonatomic, copy) NSString *buttonText;
+@property (nonatomic, copy) ActionBlock buttonActionBlock;
 
 #endif
 

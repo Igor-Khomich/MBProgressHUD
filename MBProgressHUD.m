@@ -1,4 +1,4 @@
- //
+  //
 // MBProgressHUD.m
 // Version 0.5
 // Created by Matej Bukovinski on 2.4.09.
@@ -207,14 +207,40 @@ static const CGFloat kButtonFrameSize = 8.0f;
 }
 
 - (void)setLabelText:(NSString *)text{
+    
+    UILabel* label_ = self->label;
     labelText = [text copy];
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (label){
-            [label setText:text];
+        if (label_)
+        {
+            [label_ setText:text];
+            [ self setNeedsDisplay ];
         }
     });
     
 }
+
+- (void)setButtonText:(NSString *)text
+{
+    if ( !text )
+    {
+        self->buttonText = nil;
+        [ self removeButton ];
+        return;
+    }
+    
+    UIButton* button_ = self->button;
+    self->buttonText = [text copy];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (button_)
+        {
+            [button_ setTitle: text forState: UIControlStateNormal ];
+            [ self setNeedsDisplay ];
+        }
+    });
+    
+}
+
 
 - (id)initWithView:(UIView *)view {
 	NSAssert(view, @"View must not be nil.");
@@ -261,7 +287,7 @@ static const CGFloat kButtonFrameSize = 8.0f;
 		self.graceTimer = [NSTimer scheduledTimerWithTimeInterval:self.graceTime target:self 
 						   selector:@selector(handleGraceTimer:) userInfo:nil repeats:NO];
 	} 
-	// ... otherwise show the HUD imediately 
+	// ...show the HUD imediately 
 	else {
 		[self setNeedsDisplay];
 		[self showUsingAnimation:useAnimation];
@@ -451,7 +477,8 @@ static const CGFloat kButtonFrameSize = 8.0f;
 
 - (void)setupLabels {
 	label = [[UILabel alloc] initWithFrame:self.bounds];
-	label.adjustsFontSizeToFitWidth = NO;
+	label.numberOfLines = 0;
+    label.adjustsFontSizeToFitWidth = NO;
 	label.textAlignment = MBLabelAlignmentCenter;
 	label.opaque = NO;
 	label.backgroundColor = [UIColor clearColor];
@@ -587,29 +614,46 @@ static const CGFloat kButtonFrameSize = 8.0f;
 			totalSize.height = max;
 		}
 	}
-	if (totalSize.width < minSize.width) {
-		totalSize.width = minSize.width;
-	} 
-	if (totalSize.height < minSize.height) {
-		totalSize.height = minSize.height;
-	}
-	
+
 #if NS_BLOCKS_AVAILABLE
     if (buttonText)
     {
-        if (!button)
+        if (!self->button)
         {
-            button = [UIButton buttonWithType:UIButtonTypeCustom];
-            [button addTarget:self action:@selector(callActionBlock:) forControlEvents:UIControlEventTouchUpInside];
-            [button setTitle:buttonText forState:UIControlStateNormal];
-            [button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-            [self addSubview:button];
+            self->button = [UIButton buttonWithType:UIButtonTypeCustom];
+            [self->button addTarget:self action:@selector(callActionBlock:) forControlEvents:UIControlEventTouchUpInside];
+            [self->button setTitle:buttonText forState:UIControlStateNormal];
+            [self->button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+            [self addSubview:self->button];
         }
         totalSize.height += kButtonHeight;
     }
+    else
+    {
+        [ self removeButton ];
+    }
 #endif
     
+    if (totalSize.width < minSize.width) {
+		totalSize.width = minSize.width;
+	}
+	if (totalSize.height < minSize.height) {
+		totalSize.height = minSize.height;
+	}
+    
 	self.size = totalSize;
+}
+
+-(void)removeButton
+{
+#if NS_BLOCKS_AVAILABLE
+    [ self->button removeTarget: self
+                         action: @selector(callActionBlock:)
+               forControlEvents: UIControlEventTouchUpInside ];
+    
+    [ self->button removeFromSuperview ];
+    self->button = nil;
+#endif
 }
 
 #pragma mark BG Drawing
@@ -649,6 +693,7 @@ static const CGFloat kButtonFrameSize = 8.0f;
 	// Center HUD
 	CGRect allRect = self.bounds;
 	// Draw rounded HUD backgroud rect
+    
 	CGRect boxRect = CGRectMake(roundf((allRect.size.width - size.width) / 2) + self.xOffset,
 								roundf((allRect.size.height - size.height) / 2) + self.yOffset, size.width, size.height);
     
