@@ -198,9 +198,14 @@ static const CGFloat kButtonFrameSize = 8.0f;
 
 -(void)callActionBlock:(UIButton *)sender{
 #if NS_BLOCKS_AVAILABLE
-	if (self.buttonActionBlock) {
-		self.buttonActionBlock();
-		self.buttonActionBlock = NULL;
+	if (nil != self.buttonActionBlock) {
+        
+        ActionBlock buttonActionBlockCopy = [ self.buttonActionBlock copy ];
+        self.buttonActionBlock = nil;
+        
+        NSLog(@"[BEGIN] buttonActionBlockCopy");
+		buttonActionBlockCopy();
+        NSLog(@"[END] buttonActionBlockCopy");
         sender.enabled = NO;
 	}
 #endif
@@ -556,7 +561,9 @@ static const CGFloat kButtonFrameSize = 8.0f;
 	totalSize.width = MAX(totalSize.width, indicatorF.size.width);
 	totalSize.height += indicatorF.size.height;
 	
-	CGSize labelSize = [label.text sizeWithFont:label.font];
+    NSDictionary *attributes = @{ NSFontAttributeName: label.font };
+    
+	CGSize labelSize = [label.text sizeWithAttributes:attributes];
 	labelSize.width = MIN(labelSize.width, maxWidth);
 	totalSize.width = MAX(totalSize.width, labelSize.width);
 	totalSize.height += labelSize.height;
@@ -564,19 +571,40 @@ static const CGFloat kButtonFrameSize = 8.0f;
 		totalSize.height += kPadding;
 	}
 
-	CGFloat remainingHeight = bounds.size.height - totalSize.height - kPadding - 4 * margin; 
-	CGSize maxSize = CGSizeMake(maxWidth, remainingHeight);
-	CGSize detailsLabelSize = [detailsLabel.text sizeWithFont:detailsLabel.font 
-								constrainedToSize:maxSize lineBreakMode:detailsLabel.lineBreakMode];
-	totalSize.width = MAX(totalSize.width, detailsLabelSize.width);
-	totalSize.height += detailsLabelSize.height;
-	if (detailsLabelSize.height > 0.f && (indicatorF.size.height > 0.f || labelSize.height > 0.f)) {
-		totalSize.height += kPadding;
+	CGFloat remainingHeight = bounds.size.height - totalSize.height - kPadding - 4 * margin;
+    
+    CGSize detailsLabelSize = CGSizeZero;
+    
+    if ( detailsLabel.text )
+    {
+        CGSize maxSize = CGSizeMake(maxWidth, remainingHeight);
+        NSMutableParagraphStyle *style = [ [NSParagraphStyle defaultParagraphStyle] mutableCopy ];
+        [ style setAlignment: NSTextAlignmentLeft ];
+        [ style setLineBreakMode: detailsLabel.lineBreakMode ];
+        
+        attributes = @{
+                       NSFontAttributeName                :   detailsLabel.font,
+                       NSParagraphStyleAttributeName      :   style
+                       };
+        
+        NSAttributedString *attributedText = [ [NSAttributedString alloc] initWithString: detailsLabel.text
+                                                                              attributes: attributes ];
+        
+        CGRect rect = [ attributedText boundingRectWithSize: maxSize
+                                                    options: NSStringDrawingUsesLineFragmentOrigin
+                                                    context: nil ];
+        detailsLabelSize = rect.size;        
 	}
-	
-	totalSize.width += 2 * margin;
-	totalSize.height += 2 * margin;
-	
+    
+    totalSize.width = MAX(totalSize.width, detailsLabelSize.width);
+    totalSize.height += detailsLabelSize.height;
+    if (detailsLabelSize.height > 0.f && (indicatorF.size.height > 0.f || labelSize.height > 0.f)) {
+        totalSize.height += kPadding;
+    }
+    
+    totalSize.width += 2 * margin;
+    totalSize.height += 2 * margin;
+    
 	// Position elements
 	CGFloat yPos = roundf(((bounds.size.height - totalSize.height) / 2)) + margin + yOffset;
 	CGFloat xPos = xOffset;
